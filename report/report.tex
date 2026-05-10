@@ -1,0 +1,194 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+\usepackage{float}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{enumitem}
+
+\title{\textbf{Berlin Airbnb: Clustering, Sentiment \& Price Prediction}\\ 
+\large Uncovering Guest Satisfaction and Pricing Drivers in the Short-Term Rental Market}
+\author{Pouyan Fallahi\\
+\href{mailto:fallahipouyan78@gmail.com}{fallahipouyan78@gmail.com}\\
+\href{https://linkedin.com/in/pouyan-fallahi}{linkedin.com/in/pouyan-fallahi}}
+\date{May 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This study analyses Berlin’s Airbnb market using a dataset of over 635,000 guest reviews and 14,000 listings from Inside Airbnb. Listings are segmented into two distinct clusters via K‑Means clustering, and guest sentiment is extracted from review text using VADER. Predictive models are then built: a Random Forest regressor explains 92.7\% of the nightly price variance (MAE €6.92), while a Random Forest classifier predicts superhost status with 96\% accuracy. Findings reveal that location, review scores and amenities are the strongest drivers of price and superhost status, and that budget listings exhibit slightly lower guest satisfaction, highlighting opportunities for value communication.
+\end{abstract}
+
+\section{Introduction}
+The short‑term rental platform Airbnb has transformed urban tourism, making it essential for hosts, investors and policymakers to understand what drives listing success. Berlin, with its vibrant cultural scene and high tourist inflow, represents an ideal case study. This project leverages publicly available data to answer three questions:
+\begin{enumerate}[label=(\roman*)]
+    \item Can we segment Berlin listings into meaningful profiles?
+    \item How do guests feel about different types of stays?
+    \item What factors predict a listing’s price and its host’s superhost status?
+\end{enumerate}
+Using machine learning techniques—clustering, sentiment analysis and supervised learning—we provide data‑driven insights that can guide pricing strategies, improve host performance, and inform investment decisions.
+
+\section{Data Description}
+The dataset was obtained from Inside Airbnb (compiled 23 September 2025) for Berlin. It comprises:
+\begin{itemize}
+    \item \texttt{listings.csv.gz} – 14,274 active listings with 79 attributes (price, room type, location, amenities, host information, review scores, etc.)
+    \item \texttt{reviews.csv.gz} – 635,471 guest reviews with listing ID, date, reviewer name, and comment text.
+\end{itemize}
+After merging on \texttt{listing\_id}, the combined dataset has 635,471 rows and 85 columns.
+
+\section{Methodology}
+\subsection{Data Cleaning \& Feature Engineering}
+\begin{itemize}
+    \item \textbf{Price cleaning:} The \texttt{price} column (e.g., \texttt{\$105.00}) was transformed to a numeric value and capped at the 99th percentile (€400) to remove extreme outliers. Missing prices were imputed with the median of the corresponding room type.
+    \item \textbf{Categorical encoding:} Room type and neighbourhood were label‑encoded.
+    \item \textbf{New features:}
+        \begin{itemize}
+            \item Amenities count – number of amenities listed.
+            \item Distance to city centre – geodesic distance (km) to Alexanderplatz (52.5219°N, 13.4132°E).
+            \item Host response and acceptance rates – converted to numeric from percentage strings, missing values filled with the median.
+            \item Binary flags for superhost status and instant bookability.
+            \item Sentiment polarity of the review text (see Section~\ref{sec:sentiment}).
+        \end{itemize}
+    \item \textbf{Imputation:} Bedrooms, bathrooms and beds were imputed by room‑type median, then by overall median.
+\end{itemize}
+
+\subsection{Clustering with K‑Means}
+To discover natural listing segments, 13 numeric features were selected: \texttt{price\_capped, accommodates, bedrooms, bathrooms, beds, amenities\_count, host\_response\_rate\_num, host\_is\_superhost\_flag, dist\_center\_km, review\_scores\_rating, review\_scores\_cleanliness, review\_scores\_location, review\_scores\_value}.  
+Features were standardised, and K‑Means was run on a 20,000‑row random sample to reduce computation. The elbow method (inertia decrease) indicated $K=2$ as optimal (Figure~\ref{fig:elbow}).  
+After fitting, clusters were visualised using PCA (Figure~\ref{fig:pca}).
+
+\subsection{Sentiment Analysis}\label{sec:sentiment}
+Sentiment polarity of each review comment was computed with VADER (\textit{Valence Aware Dictionary and sEntiment Reasoner}) from the NLTK library. The compound score (ranging from $-1$ to $+1$) was assigned to each review, and reviews were categorised as Positive ($>0.05$), Neutral ($[-0.05,0.05]$), or Negative ($<-0.05$). Descriptive statistics and stacked bar charts were then produced per cluster.
+
+\subsection{Predictive Modelling}
+The enriched sample (20,000 rows) was split into training (80\%) and test (20\%) sets. Two tasks were addressed:
+\begin{enumerate}[label=(\alph*)]
+    \item \textbf{Price prediction (regression):} Baseline Linear Regression and Random Forest with 100 trees. Performance measured by Mean Absolute Error (MAE) and $R^2$.
+    \item \textbf{Superhost classification:} Baseline Logistic Regression (max\_iter=2000) and Random Forest classifier; evaluated via precision, recall, F1‑score, and overall accuracy. Feature importance was extracted from the Random Forest models.
+\end{enumerate}
+
+\section{Results}
+\subsection{Exploratory Data Analysis}
+\begin{itemize}
+    \item \textbf{Price distribution:} Right‑skewed, median €108 (99th percentile ≈ €400). Entire homes/apts dominate reviews.
+    \item \textbf{Review scores:} Heavily concentrated near 4.5–5.0, with a mean overall rating of 4.77.
+    \item \textbf{Correlation:} Strong positive correlations between `accommodates` and `bedrooms` (0.82), and between the review sub‑scores (0.7–0.9). Price correlates moderately with space features and very weakly with sentiment.
+\end{itemize}
+
+\subsection{Clustering}
+Table~\ref{tab:clusters} summarises the two clusters obtained.
+\begin{table}[H]
+\centering
+\caption{Mean feature values per cluster.}
+\label{tab:clusters}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Feature} & \textbf{Cluster 0 (Premium)} & \textbf{Cluster 1 (Budget)} \\
+\midrule
+Price (€)           & 227.23 & 101.49 \\
+Accommodates        & 7.06   & 2.77   \\
+Bedrooms            & 2.59   & 1.02   \\
+Bathrooms           & 1.58   & 1.04   \\
+Beds                & 4.55   & 1.66   \\
+Amenities count     & 43.32  & 32.24  \\
+Host response rate  & 98.35\% & 97.07\% \\
+Superhost ratio     & 64\%   & 51\%   \\
+Distance to centre (km) & 5.55 & 6.21 \\
+Review rating       & 4.77   & 4.77   \\
+Review cleanliness  & 4.75   & 4.76   \\
+Review location     & 4.74   & 4.78   \\
+Review value        & 4.65   & 4.68   \\
+Cluster size (sample) & 3,515 & 16,485 \\
+\bottomrule
+\end{tabular}
+\end{table}
+Cluster 0 represents larger, more expensive listings closer to the city centre, with higher superhost proportions. Cluster 1 captures smaller, more affordable accommodations slightly farther away. Both clusters maintain similarly high review scores.
+
+\subsection{Sentiment Analysis}
+\begin{table}[H]
+\centering
+\caption{Sentiment statistics per cluster.}
+\label{tab:sentiment}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Cluster} & \textbf{Mean Sentiment} & \textbf{Std} & \textbf{Positive (\%)} & \textbf{Negative (\%)} \\
+\midrule
+0 (Premium) & 0.427 & 0.590 & 65.8 & 14.5 \\
+1 (Budget)  & 0.375 & 0.616 & 62.3 & 17.5 \\
+\bottomrule
+\end{tabular}
+\end{table}
+Guest sentiment is predominantly positive in both groups; however, budget listings show a slightly higher share of negative sentiment (17.5\% vs.\ 14.5\%) and marginally lower average sentiment, suggesting a possible value‑for‑money perception gap.
+
+\subsection{Price Prediction}
+\begin{table}[H]
+\centering
+\caption{Regression performance on test set.}
+\label{tab:price}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Model} & \textbf{MAE (€)} & \textbf{$R^2$} \\
+\midrule
+Linear Regression & 36.67 & 0.553 \\
+Random Forest     & \textbf{6.92} & \textbf{0.927} \\
+\bottomrule
+\end{tabular}
+\end{table}
+The Random Forest explains 92.7\% of the price variance, with a mean absolute error of only €6.92. Feature importance (Figure~\ref{fig:feat_price}) reveals that cluster membership (dummy variables), distance to centre, and review scores (especially cleanliness and value) are the strongest price drivers.
+
+\subsection{Superhost Classification}
+\begin{table}[H]
+\centering
+\caption{Classification performance on test set.}
+\label{tab:superhost}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} & \textbf{Accuracy} \\
+\midrule
+Logistic Regression & 0.70 & 0.80 & 0.74 & 72\% \\
+Random Forest       & 0.95 & 0.97 & 0.96 & \textbf{96\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+The Random Forest classifier achieves 96\% accuracy. The most important features are review scores (overall rating, value, cleanliness), distance to centre, and amenities count (Figure~\ref{fig:feat_superhost}). Sentiment plays a minor but non‑negligible role (3.2\% importance).
+
+\section{Discussion}
+The clustering results confirm a natural split in Berlin’s Airbnb market: a premium segment offering large, well‑appointed spaces and a budget segment catering to more price‑sensitive guests. Despite high average ratings, the budget cluster exhibits more mixed sentiment, indicating that guests in this segment may have higher expectations regarding value for money.
+
+The outstanding predictive performance of the Random Forest models demonstrates that listing prices and superhost status can be accurately inferred from public features. This has practical implications:
+\begin{itemize}
+    \item Hosts can improve their superhost candidacy by focusing on review quality (cleanliness, value, location) and responsiveness.
+    \item Budget hosts might benefit from explicitly communicating the value they offer (e.g., highlighting amenities, neighbourhood attractions) to close the sentiment gap.
+    \item Investors and platform managers can use such models to benchmark listing performance and identify areas for improvement.
+\end{itemize}
+
+\section{Conclusion}
+This project successfully applied clustering, sentiment analysis and supervised machine learning to a large‑scale Berlin Airbnb dataset. Two distinct market segments were uncovered, with measurable differences in guest sentiment. Price and superhost status were predicted with high accuracy, and the resulting feature importance provides actionable guidance for hosts and stakeholders. Future work could extend the analysis to other cities, incorporate time‑series demand fluctuations, or deploy the models as an interactive dashboard.
+
+\section*{Acknowledgements}
+The data was provided by Inside Airbnb (\url{http://insideairbnb.com}). The analysis was performed in Python using pandas, NumPy, scikit‑learn, NLTK, Matplotlib and Seaborn.
+
+\begin{thebibliography}{9}
+\bibitem{insideairbnb}
+Inside Airbnb. \textit{Get the Data}. \url{http://insideairbnb.com/get-the-data.html} (Accessed 2026-05-10).
+\bibitem{vader} Hutto, C.J. \& Gilbert, E.E. (2014). VADER: A Parsimonious Rule-based Model for Sentiment Analysis of Social Media Text. \textit{Eighth International Conference on Weblogs and Social Media (ICWSM-14)}.
+\bibitem{scikit-learn} Pedregosa, F. et al. (2011). Scikit-learn: Machine Learning in Python. \textit{Journal of Machine Learning Research}, 12, 2825-2830.
+\end{thebibliography}
+
+% If figures were included, they would be referenced here, e.g.:
+% \begin{figure}[H]
+% \centering
+% \includegraphics[width=0.8\textwidth]{path/to/elbow.png}
+% \caption{Elbow method for K‑Means (20k sample).}
+% \label{fig:elbow}
+% \end{figure}
+
+\end{document}
