@@ -26,5 +26,5 @@ Python | pandas | NumPy | scikit‑learn | NLTK (VADER) | Matplotlib | Seaborn |
 ## How to Run
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/berlin-airbnb-insights.git
+   git clone https://github.com/pouyanfallahi/berlin-airbnb-insights.git
    cd berlin-airbnb-insights
